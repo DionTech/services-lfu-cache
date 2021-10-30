@@ -26,6 +26,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestPutITem(t *testing.T) {
+	actualHeap := LFU.heap
+
 	put, err := LFU.Put("foo", "bar")
 
 	if err != nil {
@@ -38,6 +40,24 @@ func TestPutITem(t *testing.T) {
 
 	if len(LFU.items) != 1 {
 		t.Fatalf("%d is wrong items length", len(LFU.items))
+	}
+
+	if len(LFU.tracking) != 1 {
+		t.Fatalf("%d is wrong tracking length", len(LFU.items))
+	}
+
+	tracking, exists := LFU.tracking["foo"]
+
+	if !exists {
+		t.Fatalf("tracking key not exists")
+	}
+
+	if tracking.heap == 0 {
+		t.Fatal("missed heap allocation")
+	}
+
+	if actualHeap >= LFU.heap {
+		t.Fatalf("heap is not calculated right; before: %d, after: %d", actualHeap, LFU.heap)
 	}
 }
 
@@ -60,6 +80,8 @@ func TestGetItem(t *testing.T) {
 }
 
 func TestForgetITem(t *testing.T) {
+	actualHeap := LFU.heap
+
 	err := LFU.Forget("foo")
 
 	if err != nil {
@@ -68,6 +90,10 @@ func TestForgetITem(t *testing.T) {
 
 	if len(LFU.items) != 0 {
 		t.Fatalf("%d is wrong items length", len(LFU.items))
+	}
+
+	if actualHeap <= LFU.heap {
+		t.Fatalf("there is n heap reducing; before: %d, after: %d", actualHeap, LFU.heap)
 	}
 
 	//we must also the part when item not exists

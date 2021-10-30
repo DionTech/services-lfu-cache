@@ -68,6 +68,8 @@ func (cache *Cache) Forget(key string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
+	delete(cache.tracking, key)
+
 	_, exists := cache.items[key]
 
 	//true means: we do not need to delete, but is the same as when deletion was successful
@@ -76,6 +78,8 @@ func (cache *Cache) Forget(key string) error {
 	}
 
 	delete(cache.items, key)
+	//triggering the garbage collector to reduce the heap size
+	runtime.GC()
 
 	cache.calcHeap()
 

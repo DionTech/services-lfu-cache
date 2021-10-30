@@ -8,7 +8,7 @@ lfu-cache/lfu/cache.go:37.27,39.3 1 1
 lfu-cache/lfu/cache.go:54.58,60.13 4 1
 lfu-cache/lfu/cache.go:64.2,64.18 1 1
 lfu-cache/lfu/cache.go:60.13,62.3 1 1
-lfu-cache/lfu/cache.go:67.46,74.13 4 1
-lfu-cache/lfu/cache.go:78.2,82.12 3 1
-lfu-cache/lfu/cache.go:74.13,76.3 1 1
-lfu-cache/lfu/cache.go:85.32,90.2 3 1
+lfu-cache/lfu/cache.go:67.46,76.13 5 1
+lfu-cache/lfu/cache.go:80.2,86.12 4 1
+lfu-cache/lfu/cache.go:76.13,78.3 1 1
+lfu-cache/lfu/cache.go:89.32,94.2 3 1
