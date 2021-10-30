@@ -72,10 +72,26 @@ func TestGetItem(t *testing.T) {
 		t.Fatalf("%v is wrong item", item)
 	}
 
+	if track := LFU.tracking["foo"].hits; track != 1 {
+		t.Fatalf("tracking not working; expected 1, got %d", track)
+	}
+
+	//manually delete the track item to have coverage at this if statement
+	delete(LFU.tracking, "foo")
+
+	LFU.Get("foo")
+	if track := LFU.tracking["foo"].hits; track != 1 {
+		t.Fatalf("tracking not working; expected 1, got %d", track)
+	}
+
 	_, err = LFU.Get("wrong")
 
 	if err == nil {
-		t.Fatalf("missing error on wrong get")
+		t.Fatal("missing error on wrong get")
+	}
+
+	if _, exists := LFU.tracking["wrong"]; exists {
+		t.Fatal("wrong tracking")
 	}
 }
 

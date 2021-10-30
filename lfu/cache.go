@@ -26,6 +26,7 @@ func Init(size uint64) Cache {
 	return Cache{size: size}
 }
 
+//Put will put a cache key to the list.
 func (cache *Cache) Put(key string, item interface{}) (bool, error) {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
@@ -51,6 +52,7 @@ func (cache *Cache) Put(key string, item interface{}) (bool, error) {
 	return true, nil
 }
 
+//Get will retrieve a cache key from the list.
 func (cache *Cache) Get(key string) (interface{}, error) {
 	cache.lock.RLock()
 	defer cache.lock.RUnlock()
@@ -61,9 +63,17 @@ func (cache *Cache) Get(key string) (interface{}, error) {
 		return nil, errors.New("key not exists")
 	}
 
+	tracking, trackExists := cache.tracking[key]
+	if !trackExists {
+		tracking = Tracking{hits: 0}
+	}
+	tracking.hits = tracking.hits + 1
+	cache.tracking[key] = tracking
+
 	return item, nil
 }
 
+//Forget will delete a cache key from the list.
 func (cache *Cache) Forget(key string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
@@ -74,6 +84,8 @@ func (cache *Cache) Forget(key string) error {
 
 	//true means: we do not need to delete, but is the same as when deletion was successful
 	if !exists {
+		//triggering the garbage collector to reduce the heap size
+		runtime.GC()
 		return nil
 	}
 
@@ -86,6 +98,7 @@ func (cache *Cache) Forget(key string) error {
 	return nil
 }
 
+//calcHeap will store the HeapAlloc bytes at cache.heap
 func (cache *Cache) calcHeap() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
