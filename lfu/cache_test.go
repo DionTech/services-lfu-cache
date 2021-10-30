@@ -9,14 +9,14 @@ func TestInit(t *testing.T) {
 
 	isCache := func(t interface{}) bool {
 		switch t.(type) {
-		case Cache:
+		case *Cache:
 			return true
 		default:
 			return false
 		}
 	}
 
-	if !isCache(myStore) {
+	if !isCache(&myStore) {
 		t.Fatalf("wrong init type")
 	}
 
