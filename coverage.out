@@ -1,0 +1,11 @@
+mode: set
+lfu-cache/lfu/cache.go:17.28,19.2 1 1
+lfu-cache/lfu/cache.go:21.69,22.24 1 1
+lfu-cache/lfu/cache.go:26.2,28.18 2 1
+lfu-cache/lfu/cache.go:22.24,24.3 1 1
+lfu-cache/lfu/cache.go:31.58,34.13 2 1
+lfu-cache/lfu/cache.go:38.2,38.18 1 1
+lfu-cache/lfu/cache.go:34.13,36.3 1 1
+lfu-cache/lfu/cache.go:41.46,45.13 2 1
+lfu-cache/lfu/cache.go:49.2,51.12 2 1
+lfu-cache/lfu/cache.go:45.13,47.3 1 1
