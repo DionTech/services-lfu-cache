@@ -1,7 +1,5 @@
 package main
 
-import "lfu-cache/lfu"
-
 func main() {
 	/** some examples **/
 
@@ -13,6 +11,4 @@ func main() {
 
 	//this will set the max cache size to 2000MB at the Heap
 	//lfu.LFU = lfu.Init(2000000000)
-
-	lfu.LFU = lfu.Init(500000)
 }

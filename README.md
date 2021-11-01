@@ -1,29 +1,22 @@
 # About
 ## Project Description
-A short description about the project and the business case(s) this repository will solve.
+This is a project to learn some elements of go. It is a thread-safe cache algorithm, based on the LFU principle. Also you can define the max heap size the runtime of this cache service may use. The aim is to not include any other package dependencies away from the standard go library to can really learn all the basics. 
 
 ## Architecture
-What systems the project is using, like AWS serverless architecture including Lambda, API Gateway, S3, ... or self hosted architecture including Docker, SQL, ...
-Are there some special elements to mention? Then do it here.
+At the moment, nothing to see here :) Later it will use docker to can be integrated as a part-based tcp service to get / set cache elements.
 
 # Setup
 ## Install
-How can I install the project locally after cloning the repo?
-Something like this:
 
 ```sh
 go mod tidy
 ```
 
-## Configuration
-Are there any configuration files (.env, .yml) where I can change behaviors of the application? Yes, then describe possibilities here. 
-
 ## Test 
-How can I run the tests?
+```sh
+go test ./... -cover 
+```
 
 ## Benchmarks
-Are there any Benchmarks available? Yes, then copy actual runs here. 
-How can I run them? 
 
-# Solved Tickets
-Here a list with links of solved tickets should be inserted. 
+
