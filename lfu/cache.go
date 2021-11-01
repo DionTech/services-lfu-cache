@@ -56,6 +56,11 @@ func (cache *Cache) Put(key string, item interface{}) (bool, error) {
 
 	cache.tracking[key] = Tracking{heap: itemHeap}
 
+	//when cache is oversized, we must reduce it - but we will not delete the new putted key!
+	if cache.heap > cache.size {
+		cache.reduce(cache.size, key)
+	}
+
 	return true, nil
 }
 
@@ -108,9 +113,9 @@ func (cache *Cache) Forget(key string) error {
 // Reduce will reduce the map to a max heap size.
 // Our first algorithm here is the LFU one.
 // @TODO: later we can try to optimize it; there will be a few more possibilities (integrating when was the last hit and when was the creation date)
-func (cache *Cache) reduce(max uint64) (bool, error) {
+func (cache *Cache) reduce(max uint64, ignore string) (bool, error) {
 	//first we will build a slice
-	keys := cache.getSortedTrackingKeys()
+	keys := cache.getSortedTrackingKeys(ignore)
 
 	for _, key := range keys {
 		cache.Forget(key)
@@ -123,11 +128,14 @@ func (cache *Cache) reduce(max uint64) (bool, error) {
 }
 
 // getSortedTrackingKeys will sort desc by hits
-func (cache *Cache) getSortedTrackingKeys() []string {
+func (cache *Cache) getSortedTrackingKeys(ignore string) []string {
 	//first we will build a slice
 	keys := make([]string, 0, len(cache.items))
 
 	for key := range cache.tracking {
+		if key == ignore {
+			continue
+		}
 		keys = append(keys, key)
 	}
 
