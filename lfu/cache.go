@@ -5,19 +5,22 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"time"
 )
 
 type Tracking struct {
-	heap uint64
-	hits uint
+	heap          uint64
+	hits          uint
+	lastUpdatedAt time.Time
 }
 
 type Cache struct {
-	size     uint64
-	items    map[string]interface{}
-	tracking map[string]Tracking
-	lock     sync.RWMutex
-	heap     uint64
+	size        uint64
+	items       map[string]interface{}
+	tracking    map[string]Tracking
+	lock        sync.RWMutex
+	heap        uint64
+	heapRuntime uint64
 }
 
 var LFU Cache
@@ -30,7 +33,10 @@ func Init(size uint64) Cache {
 		panic("minimum size is 500000")
 	}
 
-	return Cache{size: size}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	return Cache{size: size, heapRuntime: m.HeapAlloc}
 }
 
 // Put will put a cache key to the list.
@@ -46,15 +52,18 @@ func (cache *Cache) Put(key string, item interface{}) (bool, error) {
 		cache.tracking = map[string]Tracking{}
 	}
 
-	actualHeap := cache.heap
+	actualHeap := cache.heapRuntime
 
 	cache.items[key] = item
 
-	cache.calcHeap()
+	cache.calcHeapRuntime()
 
-	itemHeap := cache.heap - actualHeap
+	itemHeap := cache.heapRuntime - actualHeap
 
-	cache.tracking[key] = Tracking{heap: itemHeap}
+	//@TODO: think about it - what to do when item exists and a put was made again? Really create new Tracking? Update Tracking?
+	cache.tracking[key] = Tracking{heap: itemHeap, lastUpdatedAt: time.Now()}
+
+	cache.heap = cache.heap + itemHeap
 
 	//when cache is oversized, we must reduce it - but we will not delete the new putted key!
 	if cache.heap > cache.size {
@@ -80,6 +89,7 @@ func (cache *Cache) Get(key string) (interface{}, error) {
 		tracking = Tracking{hits: 0}
 	}
 	tracking.hits = tracking.hits + 1
+	tracking.lastUpdatedAt = time.Now()
 	cache.tracking[key] = tracking
 
 	return item, nil
@@ -90,7 +100,11 @@ func (cache *Cache) Forget(key string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
-	delete(cache.tracking, key)
+	//actualize the heap size
+	if tracking, exists := cache.tracking[key]; exists {
+		cache.heap = cache.heap - tracking.heap
+		delete(cache.tracking, key)
+	}
 
 	_, exists := cache.items[key]
 
@@ -105,13 +119,14 @@ func (cache *Cache) Forget(key string) error {
 	//triggering the garbage collector to reduce the heap size
 	runtime.GC()
 
-	cache.calcHeap()
+	cache.calcHeapRuntime()
 
 	return nil
 }
 
 // Reduce will reduce the map to a max heap size.
-// Our first algorithm here is the LFU one.
+// Our first algorithm here is the LFU one.But we not only count the hits, we also use the lastUpdated timestamp (is also updated at a hit), so that for example
+// an item with 2000 hits but lastUpdatedAt is about one month ago is not better rated instead of an item with 10 hits bit lastUpdatedAt is a few seconds ago
 // @TODO: later we can try to optimize it; there will be a few more possibilities (integrating when was the last hit and when was the creation date)
 func (cache *Cache) reduce(max uint64, ignore string) (bool, error) {
 	//first we will build a slice
@@ -119,6 +134,7 @@ func (cache *Cache) reduce(max uint64, ignore string) (bool, error) {
 
 	for _, key := range keys {
 		cache.Forget(key)
+
 		if cache.heap <= max {
 			break
 		}
@@ -141,16 +157,27 @@ func (cache *Cache) getSortedTrackingKeys(ignore string) []string {
 
 	//next we must order this slice by the hits of its keys
 	sort.Slice(keys, func(i, j int) bool {
-		return cache.tracking[keys[i]].hits > cache.tracking[keys[j]].hits
+		iTracking := cache.tracking[keys[i]]
+		jTracking := cache.tracking[keys[j]]
+
+		//to can rate the lastUpdatedAt, we can calc the difference in seconds till the last updated at
+		now := time.Now()
+		iDuration := iTracking.lastUpdatedAt.Sub(now)
+		jDuration := jTracking.lastUpdatedAt.Sub(now)
+
+		iRate := iDuration.Microseconds() + int64(iTracking.hits)
+		jRate := jDuration.Microseconds() + int64(jTracking.hits)
+
+		return iRate > jRate
 	})
 
 	return keys
 }
 
 // calcHeap will store the HeapAlloc bytes at cache.heap
-func (cache *Cache) calcHeap() {
+func (cache *Cache) calcHeapRuntime() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	cache.heap = m.HeapAlloc
+	cache.heapRuntime = m.HeapAlloc
 }
