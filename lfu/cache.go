@@ -5,19 +5,22 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"time"
 )
 
 type Tracking struct {
-	heap uint64
-	hits uint
+	heap          uint64
+	hits          uint
+	lastUpdatedAt time.Time
 }
 
 type Cache struct {
-	size     uint64
-	items    map[string]interface{}
-	tracking map[string]Tracking
-	lock     sync.RWMutex
-	heap     uint64
+	size        uint64
+	items       map[string]interface{}
+	tracking    map[string]Tracking
+	lock        sync.RWMutex
+	heap        uint64
+	heapRuntime uint64
 }
 
 var LFU Cache
@@ -30,7 +33,10 @@ func Init(size uint64) Cache {
 		panic("minimum size is 500000")
 	}
 
-	return Cache{size: size}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	return Cache{size: size, heapRuntime: m.HeapAlloc}
 }
 
 // Put will put a cache key to the list.
@@ -46,15 +52,18 @@ func (cache *Cache) Put(key string, item interface{}) (bool, error) {
 		cache.tracking = map[string]Tracking{}
 	}
 
-	actualHeap := cache.heap
+	actualHeap := cache.heapRuntime
 
 	cache.items[key] = item
 
-	cache.calcHeap()
+	cache.calcHeapRuntime()
 
-	itemHeap := cache.heap - actualHeap
+	itemHeap := cache.heapRuntime - actualHeap
 
-	cache.tracking[key] = Tracking{heap: itemHeap}
+	//@TODO: think about it - what to do when item exists and a put was made again? Really create new Tracking? Update Tracking?
+	cache.tracking[key] = Tracking{heap: itemHeap, lastUpdatedAt: time.Now()}
+
+	cache.heap = cache.heap + itemHeap
 
 	//when cache is oversized, we must reduce it - but we will not delete the new putted key!
 	if cache.heap > cache.size {
@@ -77,7 +86,7 @@ func (cache *Cache) Get(key string) (interface{}, error) {
 
 	tracking, trackExists := cache.tracking[key]
 	if !trackExists {
-		tracking = Tracking{hits: 0}
+		tracking = Tracking{hits: 0, lastUpdatedAt: time.Now()}
 	}
 	tracking.hits = tracking.hits + 1
 	cache.tracking[key] = tracking
@@ -90,7 +99,11 @@ func (cache *Cache) Forget(key string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
-	delete(cache.tracking, key)
+	//actualize the heap size
+	if tracking, exists := cache.tracking[key]; exists {
+		cache.heap = cache.heap - tracking.heap
+		delete(cache.tracking, key)
+	}
 
 	_, exists := cache.items[key]
 
@@ -105,7 +118,7 @@ func (cache *Cache) Forget(key string) error {
 	//triggering the garbage collector to reduce the heap size
 	runtime.GC()
 
-	cache.calcHeap()
+	cache.calcHeapRuntime()
 
 	return nil
 }
@@ -119,6 +132,7 @@ func (cache *Cache) reduce(max uint64, ignore string) (bool, error) {
 
 	for _, key := range keys {
 		cache.Forget(key)
+
 		if cache.heap <= max {
 			break
 		}
@@ -148,9 +162,9 @@ func (cache *Cache) getSortedTrackingKeys(ignore string) []string {
 }
 
 // calcHeap will store the HeapAlloc bytes at cache.heap
-func (cache *Cache) calcHeap() {
+func (cache *Cache) calcHeapRuntime() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	cache.heap = m.HeapAlloc
+	cache.heapRuntime = m.HeapAlloc
 }

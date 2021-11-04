@@ -106,6 +106,8 @@ func TestGetItem(t *testing.T) {
 }
 
 func TestForgetITem(t *testing.T) {
+	myCache.Put("foo", "bar")
+
 	actualHeap := myCache.heap
 
 	err := myCache.Forget("foo")
