@@ -86,9 +86,10 @@ func (cache *Cache) Get(key string) (interface{}, error) {
 
 	tracking, trackExists := cache.tracking[key]
 	if !trackExists {
-		tracking = Tracking{hits: 0, lastUpdatedAt: time.Now()}
+		tracking = Tracking{hits: 0}
 	}
 	tracking.hits = tracking.hits + 1
+	tracking.lastUpdatedAt = time.Now()
 	cache.tracking[key] = tracking
 
 	return item, nil
@@ -155,7 +156,10 @@ func (cache *Cache) getSortedTrackingKeys(ignore string) []string {
 
 	//next we must order this slice by the hits of its keys
 	sort.Slice(keys, func(i, j int) bool {
-		return cache.tracking[keys[i]].hits > cache.tracking[keys[j]].hits
+		iTracking := cache.tracking[keys[i]]
+		jTracking := cache.tracking[keys[j]]
+
+		return iTracking.hits > jTracking.hits
 	})
 
 	return keys

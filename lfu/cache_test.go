@@ -69,9 +69,15 @@ func TestPutITem(t *testing.T) {
 	if actualHeap >= myCache.heap {
 		t.Fatalf("heap is not calculated right; before: %d, after: %d", actualHeap, myCache.heap)
 	}
+
+	if tracking.lastUpdatedAt.IsZero() {
+		t.Fatalf("last updated at is not done")
+	}
 }
 
 func TestGetItem(t *testing.T) {
+	lastUpdatedAt := myCache.tracking["foo"].lastUpdatedAt
+
 	item, err := myCache.Get("foo")
 
 	if err != nil {
@@ -84,6 +90,10 @@ func TestGetItem(t *testing.T) {
 
 	if track := myCache.tracking["foo"].hits; track != 1 {
 		t.Fatalf("tracking not working; expected 1, got %d", track)
+	}
+
+	if lastUpdatedAt.Equal(myCache.tracking["foo"].lastUpdatedAt) {
+		t.Fatal("last updated at is not actualized on get")
 	}
 
 	//manually delete the track item to have coverage at this if statement
