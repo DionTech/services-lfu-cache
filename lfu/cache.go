@@ -125,7 +125,8 @@ func (cache *Cache) Forget(key string) error {
 }
 
 // Reduce will reduce the map to a max heap size.
-// Our first algorithm here is the LFU one.
+// Our first algorithm here is the LFU one.But we not only count the hits, we also use the lastUpdated timestamp (is also updated at a hit), so that for example
+// an item with 2000 hits but lastUpdatedAt is about one month ago is not better rated instead of an item with 10 hits bit lastUpdatedAt is a few seconds ago
 // @TODO: later we can try to optimize it; there will be a few more possibilities (integrating when was the last hit and when was the creation date)
 func (cache *Cache) reduce(max uint64, ignore string) (bool, error) {
 	//first we will build a slice
@@ -159,7 +160,15 @@ func (cache *Cache) getSortedTrackingKeys(ignore string) []string {
 		iTracking := cache.tracking[keys[i]]
 		jTracking := cache.tracking[keys[j]]
 
-		return iTracking.hits > jTracking.hits
+		//to can rate the lastUpdatedAt, we can calc the difference in seconds till the last updated at
+		now := time.Now()
+		iDuration := iTracking.lastUpdatedAt.Sub(now)
+		jDuration := jTracking.lastUpdatedAt.Sub(now)
+
+		iRate := iDuration.Microseconds() + int64(iTracking.hits)
+		jRate := jDuration.Microseconds() + int64(jTracking.hits)
+
+		return iRate > jRate
 	})
 
 	return keys

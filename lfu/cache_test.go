@@ -3,6 +3,7 @@ package lfu
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 var myCache = Init(500000)
@@ -154,16 +155,35 @@ func TestReduce(t *testing.T) {
 	myCache.Put("foo5", "bar ist aber nicht immer das beste")
 	myCache.Put("foo6", "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.")
 
-	myCache.tracking["foo"] = Tracking{hits: 200, heap: 16}
-	myCache.tracking["foo1"] = Tracking{hits: 21, heap: 16}
-	myCache.tracking["foo2"] = Tracking{hits: 2000, heap: 16}
-	myCache.tracking["foo3"] = Tracking{hits: 20, heap: 16}
-	myCache.tracking["foo4"] = Tracking{hits: 23, heap: 16}
-	myCache.tracking["foo5"] = Tracking{hits: 2, heap: 16}
-	myCache.tracking["foo6"] = Tracking{hits: 18, heap: 16}
+	now := time.Now()
+
+	//here we want to test the sorting without having a difference at the times
+	myCache.tracking["foo"] = Tracking{hits: 200, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo1"] = Tracking{hits: 21, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo2"] = Tracking{hits: 2000, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo3"] = Tracking{hits: 20, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo4"] = Tracking{hits: 23, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo5"] = Tracking{hits: 2, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo6"] = Tracking{hits: 18, heap: 16, lastUpdatedAt: now}
 
 	keys := myCache.getSortedTrackingKeys("foo5")
 	awaited := []string{"foo2", "foo", "foo4", "foo1", "foo3", "foo6"}
+
+	if !reflect.DeepEqual(keys, awaited) {
+		t.Fatalf("not well ordered %v, awaited %v", keys, awaited)
+	}
+
+	//now we use different time fr foo2 - the most hits but lastUpdated was a few days before, so we will get the worst rate and so the last place in order
+	myCache.tracking["foo"] = Tracking{hits: 200, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo1"] = Tracking{hits: 21, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo2"] = Tracking{hits: 2000, heap: 16, lastUpdatedAt: now.Add(100 * -24 * time.Hour)}
+	myCache.tracking["foo3"] = Tracking{hits: 20, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo4"] = Tracking{hits: 23, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo5"] = Tracking{hits: 2, heap: 16, lastUpdatedAt: now}
+	myCache.tracking["foo6"] = Tracking{hits: 18, heap: 16, lastUpdatedAt: now}
+
+	keys = myCache.getSortedTrackingKeys("foo5")
+	awaited = []string{"foo", "foo4", "foo1", "foo3", "foo6", "foo2"}
 
 	if !reflect.DeepEqual(keys, awaited) {
 		t.Fatalf("not well ordered %v, awaited %v", keys, awaited)
